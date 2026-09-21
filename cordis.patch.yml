@@ -1,0 +1,28 @@
+# dsh-approval-explain 的 bundle patch。
+#
+# ## 这一层做什么
+#
+# 插入一行 Loader entry，把本包同时挂成主机插件与浏览器插件：
+#
+#   * 主机半（`lib/index.js`）注册 `/explain` 命令，handler 调 `ctx.llm.stream()`；
+#   * 浏览器半（`lib/client.js`）由 `dsh.client` 声明被发现，接管
+#     `conversation.approval.detail` 插槽，在审批卡片里渲染「解释」按钮。
+#
+# ## 为什么是裸 insert（不带 id）
+#
+# 裸 `insert:` 把条目追加到顶层 entry 列表；带 `id:` 的 insert 是往某个
+# `group: true` 行的 `config` 数组里塞。本插件只需要追加一行，用裸 insert。
+# 本包的 patch 层排在 `dsh-web-app` 之后（profile 的 bundles 顺序），
+# 所以这一行天然落在浏览器 roster 末尾 —— 而 roster 顺序不影响激活，
+# 激活由 Cordis 服务依赖决定。
+#
+# ## 为什么不禁用 dsh 自己的行
+#
+# 与 `dshell-directory-picker` 同样的理由：本插件是**叠加式**的。
+# 它接管 `conversation.approval.detail` 靠的是 priority 抢占（single 插槽
+# 按 priority 升序取第一条），而不是禁用 `ui-chat`；`ui-chat` 的行原样保留。
+# 所以本包被禁用或加载失败时，dsh 原本的行为完全不受影响。
+
+- insert:
+    - id: approval-explain
+      name: dsh-approval-explain

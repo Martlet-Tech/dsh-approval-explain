@@ -1,0 +1,19 @@
+# 依赖与构建产物（本包直接分发 lib/，无需安装依赖即可使用）
+node_modules/
+
+# 编辑器与系统残留
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+*.tmp
+*.bak
+
+# 本地校验脚本留下的痕迹
+_verify_*.cjs
+_verify_*.mjs
+_probe*

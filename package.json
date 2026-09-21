@@ -1,0 +1,62 @@
+{
+  "name": "dsh-approval-explain",
+  "version": "0.1.0",
+  "description": "Explain what a pending dsh approval will actually do, with one LLM call: an Explain button beside Allow/Reject plus the Host /explain command behind it",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "approval",
+    "permission",
+    "explain",
+    "llm"
+  ],
+  "license": "MIT",
+  "author": "Martlet-Tech",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Martlet-Tech/dsh-approval-explain.git"
+  },
+  "homepage": "https://github.com/Martlet-Tech/dsh-approval-explain#readme",
+  "bugs": {
+    "url": "https://github.com/Martlet-Tech/dsh-approval-explain/issues"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-renderer"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  },
+  "engines": {
+    "node": "^22.19 || >=24"
+  }
+}
