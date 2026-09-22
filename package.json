@@ -38,6 +38,8 @@
     "lib/client.js",
     "cordis.patch.yml",
     "README.md",
+    "README.zh.md",
+    "screenshots/1.png",
     "LICENSE"
   ],
   "dsh": {

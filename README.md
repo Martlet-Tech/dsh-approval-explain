@@ -1,63 +1,67 @@
 # dsh-approval-explain
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的审批卡片加一个**「解释」按钮**：点一下就用一次模型调用，告诉你要批准的东西*到底想干什么*。
+[中文](README.zh.md) | English
+
+Adds an **Explain** button to [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) approval cards: one click spends one LLM call telling you what the thing you are about to approve *actually does*.
+
+![Explain button in the approval card](screenshots/1.png)
 
 ```
-┌─ ● 等待审批 ────────────────────────────────────────┐
+┌─ ● Waiting for approval ────────────────────────────┐
 │                                                    │
-│  escalate sandbox to danger-full-access: 用户要求…  │
+│  escalate sandbox to danger-full-access: user …     │
 │  Set-Content -LiteralPath 'D:\Downloads\notes.md'  │
-│  …（很长的脚本文本）                                 │
+│  …（a very long script body）                       │
 │                                                    │
-│  [ 解释 ]                    [ 拒绝 ]  [ 允许一次 ] │
+│  [ 💡Explain ]               [ Reject ] [ Allow ]  │
 │                                                    │
-│  做什么: 在 D:\Downloads 下新建（或覆盖）notes.md…  │
-│  读写改: 写入 D:\Downloads\notes.md；不删除其他文件  │
-│  安全: 注意 — 会覆盖同名文件，本身不涉及提权或删除   │
+│  What: creates (or overwrites) notes.md under …     │
+│  Touches: writes D:\Downloads\notes.md; deletes …   │
+│  Safety: caution — overwrites a same-named file …   │
 └────────────────────────────────────────────────────┘
 ```
 
-## 为什么需要它
+## Why you need it
 
-dsh 的审批卡片里有一块「详情」区，用来显示这次要批准的内容。它由一个**只认 `command` 字段**的提取器填充：
+The approval card has a "detail" area that shows what you are approving. It is filled by an extractor that **only recognizes a `command` field**:
 
 ```js
 // packages/client/ui-chat/src/client/chat/ApprovalCommand.tsx
 return typeof args.command === 'string' ? args.command : undefined
 ```
 
-于是只有 `bash` / `pwsh` 这类参数名恰好叫 `command` 的工具能把内容铺进去。`write` / `edit` 这类参数是 `file_path` + `content` 的工具，**那一块永远是空的**。
+So only tools whose argument happens to be named `command` — `bash`, `pwsh` — can put anything in that area. For tools like `write` / `edit`, whose arguments are `file_path` + `content`, **that area is always empty**.
 
-结果就是：一张写着「escalate sandbox to danger-full-access」的卡片，却看不到自己到底要批准什么。
+The result: a card saying "escalate sandbox to danger-full-access" while you cannot see what you are actually approving.
 
-本插件做两件事：
+This plugin does two things:
 
-1. **不让它留白** —— 接管详情区，兼容 `command` / `file_path` / `path` 三种参数形态；
-2. **让模型替你读** —— 「解释」按钮调一次 LLM，返回固定的三行结论：做什么 / 读写改 / 安全。
+1. **Never leaves it blank** — it takes over the detail area and supports all three argument shapes: `command` / `file_path` / `path`;
+2. **Lets the model read it for you** — the Explain button makes one LLM call and returns a fixed three-line verdict: What / Touches / Safety.
 
-## 安装
+The Explain button reuses the native button geometry (`outline`, 36px capsule) so it sits flush with Reject / Allow once, tinted with the DeepSeek family colors (`--dsw-static-deepseek-50` / `-500`) and prefixed with a 💡 icon.
 
-需要 **pnpm**（`dsh plugin` 是 pnpm 的转发壳）。没装的话先启用：
+## Install
+
+Requires **pnpm** (`dsh plugin` is a forwarding shell for pnpm). Enable it if you have not:
 
 ```sh
-corepack enable pnpm     # Node 自带 corepack，推荐
-# 或
+corepack enable pnpm     # Node ships corepack; recommended
+# or
 npm i -g pnpm
 ```
 
-然后：
+Then:
 
 ```sh
 dsh plugin --profile web add github:Martlet-Tech/dsh-approval-explain
 ```
 
-装完**重启** dsh / DShell —— profile 只在启动时读一次。
+**Restart** dsh / DShell after installing — a profile reads its bundle list only at startup.
 
-### 万一没生效
+### If it does not take effect
 
-`dsh plugin add` 会把包装进 profile 的 `node_modules`，并因为本包声明了
-`dsh.bundle` 而把它追加进 `dsh.profile.bundles`。若那条追加没发生
-（例如 pnpm 版本行为差异），手动补一行即可：
+`dsh plugin add` puts the package into the profile's `node_modules` and, because this package declares `dsh.bundle`, appends it to `dsh.profile.bundles`. If that append does not happen (a pnpm version difference, for example), add the line by hand:
 
 ```jsonc
 // $DSH_HOME/profiles/web/package.json
@@ -66,74 +70,70 @@ dsh plugin --profile web add github:Martlet-Tech/dsh-approval-explain
     "bundles": [
       "@deepseek-ai/dsh-base",
       "@deepseek-ai/dsh-web-app",
-      "dsh-approval-explain"   // ← 加这行
+      "dsh-approval-explain"   // ← add this line
     ]
   }
 }
 ```
 
-用 `dsh --profile web --dump-config` 验证：输出里应出现
-`# == dsh-approval-explain` 这一层。
+Verify with `dsh --profile web --dump-config`: the output should contain a `# == dsh-approval-explain` layer.
 
-### 为什么不需要构建授权
+### Why no build authorization is needed
 
-本包**直接分发构建产物**（`lib/` 已提交进仓库），所以不跑 `prepare`，
-也就不会触发 pnpm ≥10 对 git 依赖的 `allowBuilds` 授权提示。
+This package **ships its build output directly** (`lib/` is committed), so it runs no `prepare` script and never triggers the pnpm ≥10 `allowBuilds` prompt for git dependencies.
 
-### 卸载
+### Uninstall
 
 ```sh
 dsh plugin --profile web remove dsh-approval-explain
 ```
 
-本插件是**叠加式**的：它靠优先级接管审批卡片，**不禁用** dsh 的任何 Loader 行。所以卸载或加载失败时，dsh 原本的行为完全回来。
+The plugin is **additive**: it takes over the approval card by priority and **disables** none of dsh's Loader rows. Uninstalling it, or having it fail to load, restores dsh's original behavior completely.
 
-`/explain <内容>` 也可以直接在输入框里用，不依赖按钮。
+`/explain <content>` also works directly in the composer, without the button.
 
-## 要求
+## Requirements
 
-- dsh `0.1.5-rc.1` 或更新
-- 一个已配置的模型 provider（复用你当前会话的 provider/model，无需额外配置）
-- 仅 Web GUI（`dsh web`）
+- dsh `0.1.5-rc.1` or newer
+- A configured model provider (it reuses your current session's provider/model; no extra configuration)
+- Web GUI only (`dsh web`)
 
-## 怎么找到别的插件
+## Finding other plugins
 
-dsh **没有插件商店** —— 没有官方市场、没有远程注册表、GUI 里也不能浏览安装。
-发现渠道是 GitHub topic：
+dsh **has no plugin store** — no official marketplace, no remote registry, and the GUI cannot browse or install. Discovery happens through GitHub topics:
 
-- [`github.com/topics/dsh-plugin`](https://github.com/topics/dsh-plugin) — 官方 README 推荐的唯一渠道
-- [`awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — 社区自建精选列表
+- [`github.com/topics/dsh-plugin`](https://github.com/topics/dsh-plugin) — the only channel the official README recommends
+- [`awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — a community-curated list
 
-安装一律走 `dsh plugin --profile <name> add <spec>`，其中 `<spec>` 可以是
-npm 包名、`github:user/repo`、tarball 或本地路径。
+Installs always go through `dsh plugin --profile <name> add <spec>`, where `<spec>` may be an npm package name, `github:user/repo`, a tarball, or a local path.
 
-## 它怎么工作
+## How it works
 
-整条链路走的都是 dsh 已有的机制，没有新增远程端点：
+The whole path uses mechanisms dsh already has; it adds no remote endpoint:
 
 ```
-浏览器「解释」按钮
-   └─ ctx.remote.commands.execute(sessionId, '/explain <内容>', [])
-        └─ 主机侧 /explain 命令 handler      ← 跑在 Host，能调 ctx.llm
+Browser "Explain" button
+   └─ ctx.remote.commands.execute(sessionId, '/explain <content>', [])
+        └─ host-side /explain command handler   ← runs on the Host, can reach ctx.llm
              └─ ctx.llm.stream({ provider, model, messages, system })
-                  └─ 文本块累积 → { kind: 'success', text }
-        └─ 结果同步返回并就地展开
+                  └─ text deltas accumulate → { kind: 'success', text }
+        └─ the result returns synchronously and expands in place
 ```
 
-两个设计决定值得说明：
+Two design decisions are worth explaining:
 
-**为什么用「人类命令」而不是自建远程 API。** `ctx.llm` 是主机侧服务且没有 `@Remote`，浏览器够不着它。自建 `@Remote` 端点则需要 Typert 代码生成，而它只扫描 dsh 仓库内的 `packages/`。`ctx.remote.commands.execute()` 早已挂载，命令 handler 又跑在主机侧 —— 这是唯一现成、无需改 dsh 的通道。`/compact` 就是这条链路的既有先例。
+**Why a "human command" instead of a custom remote API.** `ctx.llm` is a host-side service with no `@Remote`, so the browser cannot reach it. A custom `@Remote` endpoint would need Typert code generation, which only scans `packages/` inside the dsh repository. `ctx.remote.commands.execute()` is already mounted and its command handlers run host-side — the only ready-made channel that needs no changes to dsh. `/compact` is the existing precedent for this path.
 
-**为什么整份代码零 import。** 插件作为树外包经 profile 的 junction 装载；Node 从 junction 的真实路径向上找 `node_modules`，那里没有 `@deepseek-ai/*`。所以主机半用 `ctx.get('llm')` 取服务、按 `Message` 结构字面构造消息，不 import 任何包。
+**Why the whole file has zero imports.** The plugin loads as an out-of-tree package through the profile's junction; Node walks up from the junction's real path looking for `node_modules`, and there is no `@deepseek-ai/*` there. So the host half gets its service via `ctx.get('llm')` and builds messages literally against the `Message` shape, importing no package at all.
 
-## 已知限制
+## Known limitations
 
-- **每次点击会留痕**：命令系统会记 `command/run` + `command/done` 两行到会话日志。这是可审计性，不是零痕迹。
-- **解释要花 token**：一次约 700 输出 token 上限的小请求。dsh 对 LLM 调用没有审批闸门，所以这一步不会有二次确认。
-- **接管了整张审批卡片**：因为「拒绝 / 允许一次」那一行由 dsh 自己渲染、没有暴露插槽，要把按钮放进那一行只能接管整卡。如果 dsh 未来改了卡片结构，本插件需要跟进。
-- **耦合了 `StreamChunk` 字段名**：`text-delta` / `block-end` / `finish` 是当前版本的结构，零依赖的代价就是要跟着版本走。
-- 目前只做**解释**。不改变批准结果，也不缓存结论。
+- **Every click leaves a trace**: the command system records `command/run` + `command/done` lines in the session log. That is auditability, not zero footprint.
+- **Explaining costs tokens**: a small request capped at roughly 700 output tokens. dsh has no approval gate on LLM calls, so this step has no second confirmation.
+- **It takes over the whole approval card**: the "Reject / Allow once" row is rendered by dsh itself and exposes no slot, so putting a button on that row means taking over the card. If dsh changes the card structure in the future, this plugin will need to follow.
+- **It is coupled to `StreamChunk` field names**: `text-delta` / `block-end` / `finish` are the current structure; zero dependencies means tracking the version.
+- For now it only **explains**. It does not change the approval outcome and does not cache verdicts.
 
-## 许可
+## License
 
 MIT
