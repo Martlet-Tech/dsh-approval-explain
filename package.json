@@ -40,6 +40,7 @@
     "README.md",
     "README.zh.md",
     "screenshots/1.png",
+    "screenshots.json",
     "LICENSE"
   ],
   "dsh": {
